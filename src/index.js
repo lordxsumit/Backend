@@ -7,6 +7,7 @@ import connectDB from "./db/db.js";
 dotenv.config({
     path: './env'
 })
+// require('dotenv').config({path: './env'})                                'The above 3 line can be used as this also' 
 
 connectDB()
 .then(() => {
@@ -32,7 +33,7 @@ connectDB()
 
 
 
-/*
+/*                                                      (using IFFI)
 import express from 'express'
 const app = express()
 ( async () => {
@@ -40,6 +41,7 @@ const app = express()
         await mongoose.connect(`${process.env.MONGODB_URI}/${DB_NAME}`)
         app.on('error', (error) => {
             console.log("Error: ", error);
+            throw error
         })
 
         app.listen(process.env.PORT, () => {
