@@ -3,12 +3,33 @@ import { ApiError } from "../utils/ApiError.js";
 import { user } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import jwt from "jsonwebtoken" ;
 
 
+const generateAccessAndRefreshToken = async (userID) => {
+    try {
+        const newUser = await user.findById(userID)
+        const accessToken = newUser.generateAccessToken();
+        const refreshToken = newUser.generateRefreshToken();
+
+        // console.log("The access token is : ",accessToken);
+        // console.log("The refresh token is : ",refreshToken);
+
+        newUser.refreshToken = refreshToken
+        await newUser.save({ validateBeforeSave: false })
+
+        return {accessToken, refreshToken}
+
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong while generating access and refresh token")
+    }
+}
+
+
+// These are some functionalities for the user.
 const registerUser = asyncHandler( async (req, res) => {
     // get user detail from the frontend
     const {username, email, fullName, password} = req.body
-    // console.log("email: ", email);
 
 
     // validation - not empty
@@ -21,7 +42,7 @@ const registerUser = asyncHandler( async (req, res) => {
 
     // check if user already exists: username, email
     const existedUser = await user.findOne({
-        $or: [{username}, {email}]                          // "$or" is a 
+        $or: [{username}, {email}]                          // "$or" is a mongodb logical operator.
     })
     if(existedUser){
         throw new ApiError(409, "An user already exists with this username and email")
@@ -60,9 +81,7 @@ const registerUser = asyncHandler( async (req, res) => {
     })
 
     // remove password and refresh token field from response
-    const createdUser = await user.findById(User._id).select(
-        "-password -refreshToken"
-    )
+    const createdUser = await user.findById(User._id).select("-password -refreshToken")
     if(!createdUser){
         throw new ApiError(500, "Something went wrong while registering the user")
     }
@@ -74,4 +93,126 @@ const registerUser = asyncHandler( async (req, res) => {
     
 })
 
-export {registerUser}
+const loginUser = asyncHandler( async (req, res) => {
+    // req.body -> data
+    const {email, username, password} = req.body
+
+
+    // username or email
+    if(!username && !email){
+        throw new ApiError(400, "username or email is required")
+    }
+
+
+    // find the user
+    const User = await user.findOne({
+        $or: [{username}, {email}]
+    })
+    if (!User) {
+        throw new ApiError(404, "User does not exists")
+    }
+
+
+    // password check
+    const isPasswordValid = await User.isPasswordCorrect(password)
+    if(!isPasswordValid){
+        throw new ApiError(401, "Invalid user credentials")
+    }
+
+
+    // access and refresh token
+    const {accessToken, refreshToken} = await generateAccessAndRefreshToken(User._id)
+
+    const loggedInUser = await user.findById(User._id).select("-password -refreshToken")
+
+
+    // send cookie
+    const options = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production'                   // This line resolve's the problem of cookies not showing in the cookie tab in the postman while testing. (This fix was found through searching for fixes on perplexity)
+    }
+
+    return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+        new ApiResponse(
+            200,
+            {
+                user: loggedInUser, accessToken, refreshToken
+            },
+            "User logged in successfully"
+        )
+    )
+
+})
+
+const logoutUser = asyncHandler( async (req, res) => {
+    await user.findByIdAndUpdate(
+        req.newUser._id,
+        {
+            $unset: {
+                refreshToken: 1
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+    const options = {
+        httpOnly: true,
+        secure: false
+    }
+
+    return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User logged out!"))
+})
+
+
+const refreshAccessToken = asyncHandler(async (req, res) => {
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
+    if(!incomingRefreshToken){
+        throw new ApiError(401, "Unauthorized request")
+    }
+
+    try {
+        const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
+    
+        const User = await user.findById(decodedToken?._id);
+        if(!User){
+            throw new ApiError(401, "Invalid refresh token");
+        }
+    
+        if(incomingRefreshToken !== User?.refreshToken){
+            throw new ApiError(401, "Refresh token is either expired or used")
+        }
+    
+        const options = {
+            httpOnly: true,
+            secure: true
+        }
+    
+        const {accessToken, newRefreshToken} = await generateAccessAndRefreshToken(User._id);
+    
+        return res
+        .status(200)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", newRefreshToken, options)
+        .json(
+            new ApiResponse(
+                200,
+                {accessToken, newRefreshToken},
+                "Access token refreshed"
+            )
+        )
+    } catch (error) {
+        throw new ApiError(401, error?.message || "Invalid refresh token")
+    }
+})
+
+export {registerUser, loginUser, logoutUser, refreshAccessToken}

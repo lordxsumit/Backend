@@ -7,7 +7,7 @@ import connectDB from "./db/db.js";
 dotenv.config({
     path: './.env'
 })
-// require('dotenv').config({path: './env'})                                'The above 3 line can be used as this also' 
+// require('dotenv').config({path: './env'})                                'The above 3 line can be used as this also but we used the import statement format for consistency in the code.' 
 
 connectDB()
 .then(() => {
