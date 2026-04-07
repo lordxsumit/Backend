@@ -117,4 +117,7 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+new.js
+project.tldr
+
 # End of https://mrkandreev.name/snippets/gitignore-generator/#Node
