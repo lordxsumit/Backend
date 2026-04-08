@@ -72,6 +72,7 @@ const uploadVideo = asyncHandler(async (req, res) => {
     )
 })
 
+// Get video by ID.
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
 
@@ -94,6 +95,7 @@ const getVideoById = asyncHandler(async (req, res) => {
     )
 })
 
+// Get all videos.
 const getAllVideos = asyncHandler(async (req, res) => {
     const { page=1, limit=10, sortBy = "createdAt", sortType = "desc", userId } = req.query;
     const matchStage = {};
@@ -130,11 +132,58 @@ const getAllVideos = asyncHandler(async (req, res) => {
     )
 })
 
+// Update details of a video.
+const updateVideo = asyncHandler(async (req, res) => {
+    const { videoId } = req.params;
+    const { title, description } = req.body;
+
+    if(
+        [videoId].some((field) => field?.trim() === "")
+    ){
+        throw new ApiError(400, "Video Id is required")
+    }
+
+    if(
+        ([title].some((field) => field?.trim() === "")) && ([description].some((field) => field?.trim() === ""))
+    ){
+        throw new ApiError(400, "Atleast one field is required to update")
+    }
+
+    const Video = await video.findById(videoId)
+
+    if(!Video){
+        throw new ApiError(404, "Video not found")
+    }
+    
+    if(Video.owner.toString() !== req.user?._id.toString()){
+        throw new ApiError(403, "You are not authorized to update this video")
+    }
+
+    const updateData = {};
+
+    if(title?.trim()) updateData.title = title;
+    if(description?.trim()) updateData.description = description;
+
+    const updateVideo = await video.findByIdAndUpdate(
+        videoId,
+        {
+            $set: updateData
+        },
+        { new: true }
+    )
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, updateVideo, "Video updated successfully")
+    )
+})
+
 export {
     uploadVideo,
     getVideoById,
     getAllVideos,
-    // updateVideo,
+    updateVideo,
     // updateVideoThumbnail,
     // deleteVideo,
     // togglePublishStatus,
