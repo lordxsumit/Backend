@@ -15,7 +15,9 @@ const uploadVideo = asyncHandler(async (req, res) => {
     // if(!title?.trim() || !description?.trim()){
     //     throw new ApiError(400, "Title and description are required")
     // }
-    if ([title, description].some((field) => field?.trim() === "")){
+    if (
+        [title, description].some((field) => field?.trim() === "")
+    ){
         throw new ApiError(400, "Title and description are required")
     }
 
@@ -70,12 +72,68 @@ const uploadVideo = asyncHandler(async (req, res) => {
     )
 })
 
+const getVideoById = asyncHandler(async (req, res) => {
+    const { videoId } = req.params;
 
+    if(
+        [videoId].some((field) => field?.trim() === "")
+    ){
+        throw new ApiError(400, "Video ID is required!")
+    }
+
+    const Video = await video.findById(videoId);
+
+    if(!Video){
+        throw new ApiError(404, "Video not found")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, Video, "Video fetched successfully")
+    )
+})
+
+const getAllVideos = asyncHandler(async (req, res) => {
+    const { page=1, limit=10, sortBy = "createdAt", sortType = "desc", userId } = req.query;
+    const matchStage = {};
+
+    if(userId){
+        matchStage.owner = new mongoose.Types.ObjectId(userId);
+    }
+
+    const videos = await video.aggregate([
+        {
+            $match: matchStage
+        },
+        {
+            $sort: {
+                [sortBy]: sortType === "desc" ? -1 : 1
+            }
+        },
+        {
+            $skip: (page - 1)*limit
+        },
+        {
+            $limit: parseInt(limit)
+        }
+    ])
+
+    if(!videos){
+        throw new ApiError(500, "Something went wrong while fetching videos")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, videos , "Videos fetched successfully")
+    )
+})
 
 export {
     uploadVideo,
-    // getVideoById,
-    // getAllVideos,
+    getVideoById,
+    getAllVideos,
     // updateVideo,
     // updateVideoThumbnail,
     // deleteVideo,
