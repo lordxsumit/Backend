@@ -60,7 +60,6 @@ const uploadVideo = asyncHandler(async (req, res) => {
     })
 
     const createdVideo = await video.findById(uploadedVideo._id);
-
     if(!createdVideo){
         throw new ApiError(500, "Something went wrong while uploading video")
     }
@@ -83,7 +82,6 @@ const getVideoById = asyncHandler(async (req, res) => {
     }
 
     const Video = await video.findById(videoId);
-
     if(!Video){
         throw new ApiError(404, "Video not found")
     }
@@ -150,7 +148,6 @@ const updateVideo = asyncHandler(async (req, res) => {
     }
 
     const Video = await video.findById(videoId)
-
     if(!Video){
         throw new ApiError(404, "Video not found")
     }
@@ -179,12 +176,58 @@ const updateVideo = asyncHandler(async (req, res) => {
     )
 })
 
+// Update video thumbnail.
+const updateVideoThumbnail = asyncHandler(async (req, res) => {
+    const { videoId } = req.params;
+
+    if(
+        [videoId].some((field) => field?.trim() === "")
+    ){
+        throw new ApiError(400, "Video ID is required")
+    }
+
+    const thumbnailLocalPath = req.file?.path;
+    if(!thumbnailLocalPath){
+        throw new ApiError(400, "Thumbnail file not found!")
+    }
+
+    const Video = await video.findById(videoId);
+    if(!Video){
+        throw new ApiError(404, "Video file not found")
+    }
+
+    if(Video.owner.toString() !== req.user?._id.toString()){
+        throw new ApiError(403, "You are not authorized to update the thumbnail of the video")
+    }
+
+    const thumbnail = await uploadOnCloudinary(thumbnailLocalPath);
+    if(!thumbnail.url){
+        throw new ApiError(400, "Something went wrong while uploading thumbnail")
+    }
+
+    const updatedVideo = await video.findByIdAndUpdate(
+        videoId,
+        {
+            $set: {
+                thumbnail: thumbnail.url
+            }
+        },
+        { new: true }
+    )
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, updatedVideo, "Thumbnail updated successfully")
+    )
+})
+
 export {
     uploadVideo,
     getVideoById,
     getAllVideos,
     updateVideo,
-    // updateVideoThumbnail,
+    updateVideoThumbnail,
     // deleteVideo,
     // togglePublishStatus,
     // getChannelVideos
