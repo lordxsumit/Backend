@@ -222,13 +222,77 @@ const updateVideoThumbnail = asyncHandler(async (req, res) => {
     )
 })
 
+// Delete video.
+const deleteVideo = asyncHandler(async (req, res) => {
+    const { videoId } = req.params;
+
+    if(
+        [videoId].some((field) => field?.trim() === "")
+    ){
+        throw new ApiError(400, "Video ID is required!")
+    }
+
+    const Video = await video.findById(videoId);
+    if(!Video){
+        throw new ApiError(404, "Video not found")
+    }
+
+    if(Video.owner.toString() !== req.user?._id.toString()){
+        throw new ApiError(403, "You are not authorized to delete this video")
+    }
+
+    const deletedVideo = await video.findByIdAndDelete(videoId);
+    // await video.findByIdAndDelete(videoId);
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, deletedVideo /* or we can use {} */, "Video was deleted successfully")
+    )
+})
+
+const togglePublishStatus = asyncHandler(async (req, res) => {
+    const { videoId } = req.params;
+
+    if(
+        [videoId].some((field) => field?.trim() === "")
+    ){
+        throw new ApiError(400, "Video ID is required!")
+    }
+
+    const Video = await video.findById(videoId);
+    if(!Video){
+        throw new ApiError(404, "Video not found")
+    }
+
+    if(Video.owner.toString() !== req.user?._id.toString()){
+        throw new ApiError(403, "You are not authorized to toggle the publish status of this video")
+    }
+
+    const toggledVideoStatus = await video.findByIdAndUpdate(
+        videoId,
+        {
+            $set: {
+                isPublished: !Video.isPublished
+            }
+        },
+        { new: true }
+    )
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, toggledVideoStatus, `Video ${toggledVideoStatus.isPublished ? 'published' : 'unpublished'} successfully`)
+    )
+})
+
 export {
     uploadVideo,
     getVideoById,
     getAllVideos,
     updateVideo,
     updateVideoThumbnail,
-    // deleteVideo,
-    // togglePublishStatus,
+    deleteVideo,
+    togglePublishStatus,
     // getChannelVideos
 }
