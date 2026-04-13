@@ -251,6 +251,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
     )
 })
 
+// Toggle video publish status.
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
 
@@ -286,6 +287,67 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     )
 })
 
+// Get videos by user channel.
+const getChannelVideos = asyncHandler(async (req, res) => {
+    const { username } = req.params;
+
+    if(
+        [username].some((field) => field?.trim() === "")
+    ){
+        throw new ApiError(400, "Username is required")
+    }
+
+    const User = await user.findOne({ username: username.toLowerCase() });
+    if(!User){
+        throw new ApiError(404, "User not found")
+    }
+
+    const channelVideos = await video.aggregate([
+        {
+            $match: {
+                owner: new mongoose.Types.ObjectId(User._id),
+                isPublished: true
+            }
+        },
+        {
+            $lookup: {
+                from: "user",
+                localField: "owner",
+                foreignField: "_id",
+                as: "ownerDetails",
+                pipeline: [
+                    {
+                        $project: {
+                            fullName: 1,    // true
+                            username: 1,    // true
+                            avatar: 1       // true
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields: {
+                ownerDetails: {
+                    $first: "$ownerDetails"
+                }
+            }
+        },
+        {
+            $sort: {
+                createdAt: -1
+            }
+        }
+    ])
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, channelVideos, "Channel videos fetched successfully!")
+    )
+})
+
+
 export {
     uploadVideo,
     getVideoById,
@@ -294,5 +356,5 @@ export {
     updateVideoThumbnail,
     deleteVideo,
     togglePublishStatus,
-    // getChannelVideos
+    getChannelVideos
 }
