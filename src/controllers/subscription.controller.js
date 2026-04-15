@@ -2,7 +2,6 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { subscription } from "../models/subscription.model.js";
-import mongoose from "mongoose";
 
 
 const toggleSubscription = asyncHandler(async (req, res) => {
