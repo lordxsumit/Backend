@@ -39,13 +39,31 @@ const createPlaylist = asyncHandler(async (req, res) => {
     )
 })
 
+
+// get user's all playlists
+const getUserPlaylists = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+
+    if(
+        [userId].some((field) => field.trim() === "")
+    ){
+        throw new ApiError(400, "User ID is required")
+    }
+
+    if(!mongoose.Types.ObjectId.isValid(userId)){
+        throw new ApiError(400, "Invalid user Id")
+    }
+
+    const userPlaylists = await playlist.find({ owner: mongoose.Types.ObjectId(userId) });
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, userPlaylists, "User playlist fetched successfully")
+    )
+})
+
 export {
     createPlaylist,
     getUserPlaylists,
-    getPlaylistById,
-    updatePlaylist,
-    deletePlaylist,
-    addVideoToPlaylist,
-    removeVideoFromPlaylist,
-    getPlaylistVideos
 };
