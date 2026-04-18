@@ -11,7 +11,7 @@ import mongoose from "mongoose";
 const uploadVideo = asyncHandler(async (req, res) => {
     const { title, description } = req.body;
 
-    // if(!title?.trim() || !description?.trim()){
+    // if(!title?.trim() && !description?.trim()){
     //     throw new ApiError(400, "Title and description are required")
     // }
     if (
