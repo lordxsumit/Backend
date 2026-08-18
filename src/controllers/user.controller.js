@@ -221,7 +221,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 const changeCurrentPassword = asyncHandler(async (req, res) => {
     const {oldPassword, newPassword} = req.body                     // here we can later add another field of confirmed password for extra check.
 
-    const User = await user.findById(req.user?._id)     // prone to error
+    const User = await user.findById(req.user?._id)     // prone to error(add newuser in place of user, it might resolve the problem)
     const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
 
     if(!isPasswordCorrect){
